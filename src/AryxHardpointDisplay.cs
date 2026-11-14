@@ -1,6 +1,5 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -31,7 +30,7 @@ namespace Aryx_NavalInterceptor1
         [SerializeField]
         [Min(0)]
         private int capacityOverride;
-        [Tooltip("Object hidden when this hardpoint has no Weapon equipped (I hate jammers and edgecases). Leave empty to use this obj.")]
+        [Tooltip("Object hidden when this hardpoint has no weapon equipped. Leave empty to use this GameObject.")]
         [SerializeField]
         private GameObject displayRoot;
 

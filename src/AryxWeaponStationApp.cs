@@ -2,7 +2,6 @@ using NuclearOption.UIStyleSystem;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using System.Text;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -18,16 +17,9 @@ namespace Aryx_NavalInterceptor1
             Loaded,
             Selected
         }
-        [Header("Source")]
-        [Tooltip("Whether 2 read only the configured hardpoint sets. When disabled, read Aircraft.weaponStations[weaponStationIndex] (legacy).")]
-        [SerializeField]
-        private bool useHardpointSets;
 
-        [Tooltip("Used in Weapon Station Index mode. This is the index in Aircraft.weaponStations. Old system, kinda shit, unused but I cba deprecating it")]
-        [SerializeField, Min(0)]
-        private int weaponStationIndex;
-
-        [Tooltip("Used in the Hardpoint Sets mode (which acc hardpoint set should the box represent)")]
+        [Header("Hardpoint Sets")]
+        [Tooltip("Hardpoint-set indices represented by this entry. Include both indices for a symmetric pair.")]
         [SerializeField]
         private int[] hardpointSetIndices;
 
@@ -38,7 +30,7 @@ namespace Aryx_NavalInterceptor1
         [SerializeField]
         private TMP_Text weaponAmmoCountText;
 
-        [Tooltip("Show loaded / total for magazine-fed weapons. Otherwise only total remaining ammo is displayed.")]
+        [Tooltip("Show loaded / full capacity for magazine-fed weapons. Otherwise show total remaining ammo.")]
         [SerializeField]
         private bool showMagazineReadout;
 
@@ -71,7 +63,6 @@ namespace Aryx_NavalInterceptor1
 
         private Aircraft aircraft;
         private WeaponManager weaponManager;
-        private WeaponStation indexedStation;
 
         private readonly HashSet<Hardpoint> trackedHardpoints = new HashSet<Hardpoint>();
         private readonly List<Weapon> trackedWeapons = new List<Weapon>();
@@ -115,7 +106,7 @@ namespace Aryx_NavalInterceptor1
             string ammoReadout;
             DisplayState state;
 
-            bool valid = useHardpointSets ? TryReadHardpointGroup(out weaponName, out ammoReadout, out state) : TryReadWeaponStation(out weaponName, out ammoReadout, out state);
+            bool valid = TryReadHardpointGroup(out weaponName, out ammoReadout, out state);
 
             if (!valid)
             {
@@ -142,52 +133,6 @@ namespace Aryx_NavalInterceptor1
             displayedState = int.MinValue;
         }
 
-        private bool TryReadWeaponStation(out string weaponName, out string ammoReadout, out DisplayState state)
-        {
-            weaponName = string.Empty;
-            ammoReadout = string.Empty;
-            state = DisplayState.Invalid;
-
-            if (aircraft == null || weaponStationIndex < 0 || weaponStationIndex >= aircraft.weaponStations.Count)
-            {
-                indexedStation = null;
-                return false;
-            }
-
-            WeaponStation station = aircraft.weaponStations[weaponStationIndex];
-            if (station == null)
-            {
-                indexedStation = null;
-                return false;
-            }
-
-            if (!ReferenceEquals(indexedStation, station))
-            {
-                indexedStation = station;
-                InvalidateDisplayedValues();
-            }
-
-            weaponName = station.WeaponInfo != null  ? station.WeaponInfo.shortName : string.Empty;
-
-            int remaining = Mathf.Max(station.Ammo, 0);
-            ammoReadout = ammoCache.Get(remaining, showMagazineReadout ? station.FullAmmo : 0, showMagazineReadout);
-
-            if (remaining <= 0)
-            {
-                state = DisplayState.Empty;
-            }
-            else if (weaponManager != null && ReferenceEquals(weaponManager.currentWeaponStation, station))
-            {
-                state = DisplayState.Selected;
-            }
-            else
-            {
-                state = DisplayState.Loaded;
-            }
-
-            return !string.IsNullOrEmpty(weaponName);
-        }
-
         private bool TryReadHardpointGroup(out string weaponName, out string ammoReadout, out DisplayState state)
         {
             weaponName = hardpointGroupWeaponName;
@@ -211,9 +156,12 @@ namespace Aryx_NavalInterceptor1
                     continue;
                 }
 
-                loaded += Mathf.Max(weapon.GetAmmoLoaded(), 0);
                 total += Mathf.Max(weapon.GetAmmoTotal(), 0);
-                full += Mathf.Max(weapon.GetFullAmmo(), 0);
+                if (showMagazineReadout)
+                {
+                    loaded += Mathf.Max(weapon.GetAmmoLoaded(), 0);
+                    full += Mathf.Max(weapon.GetFullAmmo(), 0);
+                }
             }
 
             ammoReadout = ammoCache.Get(showMagazineReadout ? loaded : total, full, showMagazineReadout);
@@ -271,7 +219,6 @@ namespace Aryx_NavalInterceptor1
 
         private void RebuildTracking()
         {
-            indexedStation = null;
             trackedHardpoints.Clear();
             trackedWeapons.Clear();
             trackedStations.Clear();
@@ -279,9 +226,8 @@ namespace Aryx_NavalInterceptor1
             hardpointGroupWeaponName = string.Empty;
             InvalidateDisplayedValues();
 
-            if (!useHardpointSets || aircraft == null ||  weaponManager == null || weaponManager.hardpointSets == null || hardpointSetIndices == null || hardpointSetIndices.Length == 0)
+            if (aircraft == null || weaponManager == null || weaponManager.hardpointSets == null || hardpointSetIndices == null || hardpointSetIndices.Length == 0)
                 return;
-            
 
             List<string> weaponNames = new List<string>();
             bool foundValidSet = false;
@@ -291,12 +237,10 @@ namespace Aryx_NavalInterceptor1
                 int setIndex = hardpointSetIndices[i];
                 if (setIndex < 0 || setIndex >= weaponManager.hardpointSets.Length)
                     continue;
-                
 
                 HardpointSet set = weaponManager.hardpointSets[setIndex];
                 if (set == null)
                     continue;
-                
 
                 foundValidSet = true;
 
@@ -314,19 +258,17 @@ namespace Aryx_NavalInterceptor1
 
                 if (set.weaponMount != null && set.weaponMount.info != null)
                     AddUniqueWeaponName(weaponNames, set.weaponMount.info.shortName);
-                
+
             }
 
             if (!foundValidSet || WeaponHardpointField == null)
                 return;
-            
 
             for (int stationIndex = 0; stationIndex < aircraft.weaponStations.Count; stationIndex++)
             {
                 WeaponStation station = aircraft.weaponStations[stationIndex];
                 if (station == null || station.Weapons == null)
                     continue;
-                
 
                 bool stationUsed = false;
 
@@ -352,7 +294,7 @@ namespace Aryx_NavalInterceptor1
             }
 
             hardpointGroupWeaponName = JoinWeaponNames(weaponNames);
-            hardpointGroupValid = trackedHardpoints.Count > 0 &&  !string.IsNullOrEmpty(hardpointGroupWeaponName);
+            hardpointGroupValid = trackedHardpoints.Count > 0 && !string.IsNullOrEmpty(hardpointGroupWeaponName);
         }
 
         private static void AddUniqueWeaponName(List<string> names, string weaponName)
@@ -370,7 +312,6 @@ namespace Aryx_NavalInterceptor1
 
             if (names.Count == 1)
                 return names[0];
-            
 
             return string.Join(" / ", names.ToArray());
         }
@@ -472,13 +413,12 @@ namespace Aryx_NavalInterceptor1
         {
             if (text == null)
                 return;
-            
 
             text.fontSize = appliedFontSize;
 
             if (!colourTexts && type != AppType.MFD)
                 text.color = fontColor;
-            
+
         }
 
         private void InvalidateDisplayedValues()
@@ -497,7 +437,7 @@ namespace Aryx_NavalInterceptor1
         {
             if (weaponManager != null)
                 weaponManager.OnWeaponsLoaded -= WeaponsLoaded;
-            
+
         }
     }
 }

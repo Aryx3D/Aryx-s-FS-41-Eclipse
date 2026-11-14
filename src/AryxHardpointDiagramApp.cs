@@ -1,12 +1,8 @@
-using Aryx_NavalInterceptor1;
 using NuclearOption.UIStyleSystem;
 using System;
-using System.Collections.Generic;
 using System.Reflection;
-using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
-
 
 namespace Aryx_NavalInterceptor1
 {
@@ -58,7 +54,7 @@ namespace Aryx_NavalInterceptor1
         private WeaponManager weaponManager;
 
         private static readonly FieldInfo WeaponHardpointField = typeof(Weapon).GetField("hardpoint", BindingFlags.Instance | BindingFlags.NonPublic);
-        private static readonly FieldInfo StationWeaponIndexField = typeof(WeaponStation).GetField("weaponIndex",  BindingFlags.Instance | BindingFlags.NonPublic);
+        private static readonly FieldInfo StationWeaponIndexField = typeof(WeaponStation).GetField("weaponIndex", BindingFlags.Instance | BindingFlags.NonPublic);
 
         private static readonly Func<Weapon, Hardpoint> WeaponHardpoint = WeaponHardpointField != null ? AryxFieldAccess.CreateGetter<Weapon, Hardpoint>(WeaponHardpointField) : null;
         private static readonly Func<WeaponStation, int> StationWeaponIndex = StationWeaponIndexField != null ? AryxFieldAccess.CreateGetter<WeaponStation, int>(StationWeaponIndexField) : null;
@@ -99,6 +95,17 @@ namespace Aryx_NavalInterceptor1
             loadedColor = ThemeManager.Active.ColorTheme.AllClear;
             selectedColor = ThemeManager.Active.ColorTheme.Warning;
             spentColor = ThemeManager.Active.ColorTheme.Alert;
+
+            if (hardpoints != null)
+            {
+                for (int i = 0; i < hardpoints.Length; i++)
+                {
+                    if (hardpoints[i] != null)
+                    {
+                        hardpoints[i].LastState = int.MinValue;
+                    }
+                }
+            }
         }
 
         private void WeaponsLoaded()
@@ -186,7 +193,7 @@ namespace Aryx_NavalInterceptor1
             }
 
             HardpointSet set = weaponManager.hardpointSets[display.HardpointSetIndex];
-            if (set == null || set.hardpoints == null ||  display.HardpointIndex < 0 || display.HardpointIndex >= set.hardpoints.Count)
+            if (set == null || set.hardpoints == null || display.HardpointIndex < 0 || display.HardpointIndex >= set.hardpoints.Count)
             {
                 return false;
             }
@@ -245,10 +252,7 @@ namespace Aryx_NavalInterceptor1
             ApplyDisplay(display, remaining, capacity, state);
         }
 
-
-        private static void SetDisplayVisible(
-            AryxHardpointDisplay display,
-            bool visible)
+        private static void SetDisplayVisible(AryxHardpointDisplay display, bool visible)
         {
             if (display == null)
             {
@@ -291,11 +295,7 @@ namespace Aryx_NavalInterceptor1
                 return false;
             }
 
-            if (!highlightNextWeaponOnly ||
-                selectedStation.WeaponInfo == null ||
-                selectedStation.WeaponInfo.gun ||
-                selectedStation.WeaponInfo.fireInterval == 0f ||
-                StationWeaponIndexField == null)
+            if (!highlightNextWeaponOnly || selectedStation.WeaponInfo == null || selectedStation.WeaponInfo.gun || selectedStation.WeaponInfo.fireInterval == 0f || StationWeaponIndexField == null)
             {
                 return true;
             }
@@ -307,8 +307,7 @@ namespace Aryx_NavalInterceptor1
             }
 
             Weapon nextWeapon = selectedStation.Weapons[nextWeaponIndex];
-            return nextWeapon != null &&
-                   ReferenceEquals(GetWeaponHardpoint(nextWeapon), display.ResolvedHardpoint);
+            return nextWeapon != null && ReferenceEquals(GetWeaponHardpoint(nextWeapon), display.ResolvedHardpoint);
         }
 
         private static Hardpoint GetWeaponHardpoint(Weapon weapon)
@@ -321,13 +320,11 @@ namespace Aryx_NavalInterceptor1
             return WeaponHardpoint(weapon);
         }
 
-        private void ApplyDisplay(AryxHardpointDisplay display, int remaining, int capacity,  DisplayState state)
+        private void ApplyDisplay(AryxHardpointDisplay display, int remaining, int capacity, DisplayState state)
         {
             int stateValue = (int)state;
             if (display.LastRemaining == remaining && display.LastCapacity == capacity && display.LastState == stateValue)
-
                 return;
-            
 
             display.LastRemaining = remaining;
             display.LastCapacity = capacity;
@@ -337,12 +334,10 @@ namespace Aryx_NavalInterceptor1
 
             if (display.HardpointImage != null)
                 display.HardpointImage.color = GetHardpointColor(state);
-            
 
             Image[] ammoImages = display.AmmoImages;
             if (ammoImages == null)
                 return;
-            
 
             int spent = capacity - remaining;
 
@@ -351,7 +346,6 @@ namespace Aryx_NavalInterceptor1
                 Image image = ammoImages[i];
                 if (image == null)
                     continue;
-                
 
                 bool belongsToRack = i < capacity;
                 bool loaded = spendAmmoImagesFromStart ? i >= spent && i < capacity : i < remaining;
@@ -359,11 +353,10 @@ namespace Aryx_NavalInterceptor1
 
                 if (image.gameObject.activeSelf != visible)
                     image.gameObject.SetActive(visible);
-                
 
                 if (visible)
                     image.color = loaded ? activeColor : spentColor;
-                
+
             }
         }
 
