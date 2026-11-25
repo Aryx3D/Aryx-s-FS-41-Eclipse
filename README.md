@@ -10,3 +10,8 @@ https://github.com/nikkorap/NOBlueprinter-Releases/releases/latest
 
 3) Download the .dll file from this repository's Releases (on the right side of the centre panel where all the files are) and place it into Nuclear Option/Bepinex/Plugins.
 
+
+
+
+If you want to use my catapult system, **do not** duplicate the source files into your mod, it will result in annoying duplications of stuff.
+Instead, set  this mod as a dependency of the target mod, importing the .dll to blueprinter's plugins folder to access the catapult systems.
